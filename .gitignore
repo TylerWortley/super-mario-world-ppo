@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+*.sfc
+*.smc
+runs/
+checkpoints/
+videos/
+*.mp4
+
+# Model files and macOS clutter
+*.pt
+*.zip
+*.npz
+.DS_Store
