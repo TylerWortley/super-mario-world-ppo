@@ -14,6 +14,7 @@ dependencies = [
     "numpy>=2.5.4",
     "opencv-python>=5.0.0.93",
     "stable-baselines3[extra]>=2.9.2",
+    "stable-retro",
     "tensorboard>=2.21.0",
     "torch>=2.14.1",
 ]
@@ -30,3 +31,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["ppo", "smw"]
+
+[tool.uv.sources]
+stable-retro = { git = "https://github.com/Farama-Foundation/stable-retro.git" }

@@ -1250,6 +1250,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyglet"
+version = "2.1.19"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/2a/683a5e2421287c7eaa8dd06866b19f56f372271bf820dcd342936c59b166/pyglet-2.1.19.tar.gz", hash = "sha256:77fae024df940c60917ba604bab9b7e26306d66734186634b698c708cdd9f4be", size = 3915885, upload-time = "2026-10-11T23:34:01.248Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/75/f7/e5c199eb9c5cb3aae817f9102ba6c64f0c82fd4eb69a5d13dc0b1bc98ec0/pyglet-2.1.19-py3-none-any.whl", hash = "sha256:5ba6e8cb0b5ac56a284e43ab411e2bbd504191c32a765abdbd6a6c4b7f1ca317", size = 1039437, upload-time = "2026-10-11T23:33:58.548Z" },
+]
+
+[[package]]
 name = "pygments"
 version = "2.21.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1382,6 +1391,16 @@ extra = [
 ]
 
 [[package]]
+name = "stable-retro"
+version = "1.0.1"
+source = { git = "https://github.com/Farama-Foundation/stable-retro.git#089f3fd1aa99c0704fa2b135cfdf824180c3c715" }
+dependencies = [
+    { name = "farama-notifications" },
+    { name = "gymnasium" },
+    { name = "pyglet" },
+]
+
+[[package]]
 name = "super-mario-world-ppo"
 version = "0.1.0"
 source = { editable = "." }
@@ -1392,6 +1411,7 @@ dependencies = [
     { name = "numpy" },
     { name = "opencv-python" },
     { name = "stable-baselines3", extra = ["extra"] },
+    { name = "stable-retro" },
     { name = "tensorboard" },
     { name = "torch" },
 ]
@@ -1410,6 +1430,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.5.4" },
     { name = "opencv-python", specifier = ">=5.0.0.93" },
     { name = "stable-baselines3", extras = ["extra"], specifier = ">=2.9.2" },
+    { name = "stable-retro", git = "https://github.com/Farama-Foundation/stable-retro.git" },
     { name = "tensorboard", specifier = ">=2.21.0" },
     { name = "torch", specifier = ">=2.14.1" },
 ]
