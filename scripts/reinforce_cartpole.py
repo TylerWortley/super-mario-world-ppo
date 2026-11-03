@@ -8,7 +8,7 @@ import argparse
 import gymnasium as gym
 import numpy as np
 import torch
-from torch import nn
+from torch import nn, optim
 from torch.distributions import Categorical
 
 from ppo.advantages import rewards_to_go
@@ -124,15 +124,33 @@ def main():
     n_actions = env.action_space.n
 
     policy = make_policy(obs_dim, 64, n_actions)
-    # optimizer = optim.Adam(policy.parameters(), lr=args.lr)
+    optimizer = optim.Adam(policy.parameters(), lr=args.lr)
     env.reset(seed=args.seed)
 
-    batch_obs, batch_actions, batch_returns, episode_returns = collect_batch(
-        env, policy, args.batch_size, args.weight
-    )
-    print(f"collected {len(batch_obs)} steps from {len(episode_returns)} episodes")
-    print(f"batch actions: {batch_actions}")
-    print(f"batch returns: {batch_returns}")
+    # training loop
+    for update in range(args.updates):
+        # rollout collection
+        batch_obs, batch_actions, batch_returns, episode_returns = collect_batch(
+            env, policy, args.batch_size, args.weight
+        )
+
+        # log-probabilities with gradients tracked
+        logits = policy(batch_obs)
+        dist = Categorical(logits=logits)
+        log_probs = dist.log_prob(batch_actions)
+
+        # loss: (-log-prob * return)
+        loss = (-log_probs * batch_returns).mean()
+
+        # clear old gradients, compute backward pass, update weights
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # logging
+        mean_return = np.mean(episode_returns)
+        entropy = dist.entropy().mean().item()
+        print(f"update {update:3d}  return {mean_return:6.1f}   entropy {entropy:.3f}")
 
 
 if __name__ == "__main__":
