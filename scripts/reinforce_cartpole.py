@@ -91,6 +91,22 @@ def collect_batch(env, policy, batch_size, weight):
     )
 
 
+def play_episode(env, policy) -> float:
+    """Watch an episode play out under a given policy"""
+    state, _ = env.reset()
+    terminated = False
+    truncated = False
+    total_reward = 0
+
+    while not (terminated or truncated):
+        action = select_action(policy, state)
+        next_state, reward, terminated, truncated, _ = env.step(action)
+        state = next_state
+        total_reward += reward
+
+    return total_reward
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run REINFORCE algorithm on cartpole")
     parser.add_argument(
@@ -114,6 +130,12 @@ def main():
     parser.add_argument(
         "--lr", type=float, default=1e-2, help="Learning rate for updating parameters"
     )
+    parser.add_argument(
+        "--watch-freq",
+        type=int,
+        default=0,
+        help="Render one episode every N updates (0=off)",
+    )
 
     args = parser.parse_args()
 
@@ -126,6 +148,10 @@ def main():
     policy = make_policy(obs_dim, 64, n_actions)
     optimizer = optim.Adam(policy.parameters(), lr=args.lr)
     env.reset(seed=args.seed)
+
+    # create second env to watch episode play out for a specific policy
+    if args.watch_freq > 0:
+        watch_env = gym.make("CartPole-v1", render_mode="human")
 
     # training loop
     for update in range(args.updates):
@@ -151,6 +177,15 @@ def main():
         mean_return = np.mean(episode_returns)
         entropy = dist.entropy().mean().item()
         print(f"update {update:3d}  return {mean_return:6.1f}   entropy {entropy:.3f}")
+
+        # watch current policy
+        if args.watch_freq > 0 and update % args.watch_freq == 0:
+            total_reward = play_episode(watch_env, policy)
+            (print(f"  watched: {total_reward:.0f}"),)
+
+    # close pygame window
+    if args.watch_freq > 0:
+        watch_env.close()
 
 
 if __name__ == "__main__":
