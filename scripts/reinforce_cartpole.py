@@ -4,6 +4,7 @@ Usage: uv run python scripts/reinforce_cartpole.py --weight rtg --seed 0
 """
 
 import argparse
+from pathlib import Path
 
 import gymnasium as gym
 import numpy as np
@@ -12,6 +13,8 @@ from torch import nn, optim
 from torch.distributions import Categorical
 
 from ppo.advantages import rewards_to_go
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def make_policy(states, hidden, actions):
@@ -153,6 +156,8 @@ def main():
     if args.watch_freq > 0:
         watch_env = gym.make("CartPole-v1", render_mode="human")
 
+    reward_history = []
+
     # training loop
     for update in range(args.updates):
         # rollout collection
@@ -175,17 +180,24 @@ def main():
 
         # logging
         mean_return = np.mean(episode_returns)
+        reward_history.append(mean_return)
         entropy = dist.entropy().mean().item()
         print(f"update {update:3d}  return {mean_return:6.1f}   entropy {entropy:.3f}")
 
         # watch current policy
         if args.watch_freq > 0 and update % args.watch_freq == 0:
             total_reward = play_episode(watch_env, policy)
-            (print(f"  watched: {total_reward:.0f}"),)
+            print(f"  watched: {total_reward:.0f}")
 
     # close pygame window
     if args.watch_freq > 0:
         watch_env.close()
+
+    # save
+    output_dir = ROOT / "runs" / "reinforce"
+    file_path = output_dir / f"{args.weight}_seed{args.seed}.npy"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    np.save(file_path, reward_history)
 
 
 if __name__ == "__main__":
