@@ -212,7 +212,7 @@ def main():
 
         # value function gradient descent
         if args.weight == "baseline":
-            for iter in range(args.vf_iters):
+            for _ in range(args.vf_iters):
                 predictions = value_net(batch_obs).squeeze(-1)
                 vf_loss = (1 / 2 * (predictions - batch_returns) ** 2).mean()
 
@@ -220,13 +220,14 @@ def main():
                 value_optim.zero_grad()
                 vf_loss.backward()
                 value_optim.step()
-            print(f"Value function loss: {vf_loss.item()}")
 
         # logging
         mean_return = np.mean(episode_returns)
         reward_history.append(mean_return)
         entropy = dist.entropy().mean().item()
         print(f"update {update:3d}  return {mean_return:6.1f}   entropy {entropy:.3f}")
+        if args.weight == "baseline":
+            print(f"Value function loss: {vf_loss.item():.2f}")
 
         # watch current policy
         if args.watch_freq > 0 and update % args.watch_freq == 0:
