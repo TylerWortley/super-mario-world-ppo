@@ -17,21 +17,23 @@ from ppo.advantages import rewards_to_go
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def make_policy(states, hidden, actions):
-    """Build MLP consisting of two tanh hidden layers that maps observations to one logit per action.
+def make_mlp(in_dim, hidden, out_dim):
+    """Build MLP consisting of two tanh hidden layers, can be used to make a policy or value function.
 
-    No softmax - compute Categorical(logits=...) outside of the network to handle log-probabilities from logits
+    Linear output layer.
+    - For the policy: compute Categorical(logits=...) outside of the network to handle log-probabilities from logits
     in a numerically stable way, whereas log(softmax(x)) can result in -inf with near zero probabilities
+    - For the value function: output is an unbounded estimate of the return
     """
 
-    policy = nn.Sequential(
-        nn.Linear(states, hidden),
+    network = nn.Sequential(
+        nn.Linear(in_dim, hidden),
         nn.Tanh(),
         nn.Linear(hidden, hidden),
         nn.Tanh(),
-        nn.Linear(hidden, actions),
+        nn.Linear(hidden, out_dim),
     )
-    return policy
+    return network
 
 
 def select_action(policy, obs) -> int:
@@ -51,7 +53,7 @@ def collect_batch(env, policy, batch_size, weight):
         env: an already seeded Gymnasium environment
         policy: policy neural network used to select an action
         batch_size: minimum number of steps - last episode always runs to the end
-        weight: "rtg" credits each step with its reward-to-go; "return" credits with its episode's total return
+        weight: "rtg" and "baseline" credit each step with its reward-to-go (baseline subtracts in main); "return" credits with its episode's total return
 
     Returns:
         obs (N, obs_dim) float32, actions (N,) int64, returns (N,) float32, and a list of each finished episode's total return
@@ -78,10 +80,10 @@ def collect_batch(env, policy, batch_size, weight):
             done = terminated or truncated
 
         # calculate returns for each step of the current episode
-        if weight == "rtg":
-            returns = rewards_to_go(episode_rewards, gamma=1.0)
-        else:
+        if weight == "return":
             returns = np.full(len(episode_rewards), sum(episode_rewards))
+        else:
+            returns = rewards_to_go(episode_rewards, gamma=1.0)
 
         batch_returns.extend(returns)
         episode_returns.append(sum(episode_rewards))
@@ -115,8 +117,8 @@ def main():
     parser.add_argument(
         "--weight",
         required=True,
-        choices=["return", "rtg"],
-        help="What type of accumulated future reward to track, either over the entire trajectory (return) or from the current timestep onward (reward to go)",
+        choices=["return", "rtg", "baseline"],
+        help="How to weight action updates: whole episode returns (return), reward-to-go (rtg), or reward-to-go subtracted by a learned baseline (baseline)",
     )
     parser.add_argument(
         "--seed", type=int, default=42, help="Seed for random generation"
@@ -131,7 +133,22 @@ def main():
         help="Number of steps collected before single update is performed",
     )
     parser.add_argument(
-        "--lr", type=float, default=1e-2, help="Learning rate for updating parameters"
+        "--pi-lr",
+        type=float,
+        default=1e-2,
+        help="Learning rate for updating parameters of the policy",
+    )
+    parser.add_argument(
+        "--vf-lr",
+        type=float,
+        default=1e-3,
+        help="Learning rate for updating parameters of the value estimation network",
+    )
+    parser.add_argument(
+        "--vf-iters",
+        type=int,
+        default=80,
+        help="Number of gradient steps for fitting the value network to the batch's reward-to-go, per update",
     )
     parser.add_argument(
         "--watch-freq",
@@ -148,8 +165,15 @@ def main():
     obs_dim = env.observation_space.shape[0]
     n_actions = env.action_space.n
 
-    policy = make_policy(obs_dim, 64, n_actions)
-    optimizer = optim.Adam(policy.parameters(), lr=args.lr)
+    # policy network and optimizer
+    policy = make_mlp(obs_dim, 64, n_actions)
+    policy_optim = optim.Adam(policy.parameters(), lr=args.pi_lr)
+
+    # value estimate network and optimizer
+    if args.weight == "baseline":
+        value_net = make_mlp(obs_dim, 64, 1)
+        value_optim = optim.Adam(value_net.parameters(), lr=args.vf_lr)
+
     env.reset(seed=args.seed)
 
     # create second env to watch episode play out for a specific policy
@@ -165,18 +189,38 @@ def main():
             env, policy, args.batch_size, args.weight
         )
 
+        # subtract baseline
+        if args.weight == "baseline":
+            with torch.no_grad():
+                values = value_net(batch_obs).squeeze(-1)
+            psi = batch_returns - values
+        else:
+            psi = batch_returns
+
         # log-probabilities with gradients tracked
         logits = policy(batch_obs)
         dist = Categorical(logits=logits)
         log_probs = dist.log_prob(batch_actions)
 
-        # loss: (-log-prob * return)
-        loss = (-log_probs * batch_returns).mean()
+        # policy loss: (-log-prob * psi)
+        pi_loss = (-log_probs * psi).mean()
 
         # clear old gradients, compute backward pass, update weights
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        policy_optim.zero_grad()
+        pi_loss.backward()
+        policy_optim.step()
+
+        # value function gradient descent
+        if args.weight == "baseline":
+            for iter in range(args.vf_iters):
+                predictions = value_net(batch_obs).squeeze(-1)
+                vf_loss = (1 / 2 * (predictions - batch_returns) ** 2).mean()
+
+                # clear old gradients, compute backward pass, update weights
+                value_optim.zero_grad()
+                vf_loss.backward()
+                value_optim.step()
+            print(f"Value function loss: {vf_loss.item()}")
 
         # logging
         mean_return = np.mean(episode_returns)
