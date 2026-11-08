@@ -14,7 +14,11 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNS_DIR = ROOT / "runs" / "reinforce"
 OUTPUT_PATH = ROOT / "results" / "reinforce_cartpole.png"
 
-WEIGHTS = [("return", "whole-episode return", "C0"), ("rtg", "reward-to-go", "C1")]
+WEIGHTS = [
+    ("return", "whole-episode return", "C0"),
+    ("rtg", "reward-to-go", "C1"),
+    ("baseline", "reward-to-go - V(s)", "C2"),
+]
 SEEDS = [0, 1, 2]
 
 
