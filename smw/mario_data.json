@@ -1,0 +1,12 @@
+{
+  "info": {
+    "x":     { "address": 8257745, "type": "<u2" },
+    "y":     { "address": 8257747, "type": "<u2" },
+    "anim":  { "address": 8257649, "type": "|u1" },
+    "mode":  { "address": 8257792, "type": "|u1" },
+    "goal":  { "address": 8262803, "type": "|u1" },
+    "lives": { "address": 8261054, "type": "|i1" },
+    "coins": { "address": 8261055, "type": "|u1" },
+    "score": { "address": 8261428, "type": "<u4" }
+  }
+}
