@@ -46,7 +46,9 @@ class MarioReward(gym.Wrapper):
 
         died = info["anim"] == 9
         cleared = info["goal"] > 0
-        reward = progress / 10 - 5 * died + 50 * cleared
+        # scaled so returns stay around 10, like Atari's clipped rewards: the
+        # value clipping (0.1) and gradient clipping (0.5) in PPO assume that scale
+        reward = progress / 100 - 0.5 * died + 5 * cleared
 
         terminated = died or cleared or game_over
         truncated = (
