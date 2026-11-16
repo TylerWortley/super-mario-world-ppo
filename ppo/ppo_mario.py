@@ -3,6 +3,8 @@
 Settings are aligned with CleanRL's Atari PPO. Checkpoints saved to runs/ppo_mario/{state}_seed{seed}.pt
 For every finished episode, step, return, and Mario's x position upon termination/truncation is saved to
 runs/ppo_mario/{state}_seed{seed}.npz.
+With --snapshot-every N, a copy of the weights is also kept every N steps in
+runs/ppo_mario/{state}_seed{seed}_snapshots/step{global_step}.pt
 
 Usage: uv run python -m ppo.ppo_mario --seed 0 --total-timesteps 10000000
 """
@@ -130,6 +132,12 @@ def main():
     parser.add_argument(
         "--seed", type=int, default=0, help="Seed for random generation"
     )
+    parser.add_argument(
+        "--snapshot-every",
+        type=int,
+        default=0,
+        help="Also keep a step-numbered checkpoint every this many steps (0 = off)",
+    )
 
     args = parser.parse_args()
 
@@ -172,6 +180,9 @@ def main():
     run_dir = ROOT / "runs" / "ppo_mario"
     run_dir.mkdir(parents=True, exist_ok=True)
     name = f"{args.state}_seed{args.seed}"
+    snapshot_dir = run_dir / f"{name}_snapshots"
+    if args.snapshot_every:
+        snapshot_dir.mkdir(exist_ok=True)
     start = time.perf_counter()
 
     for update in range(num_updates):
@@ -318,6 +329,10 @@ def main():
                 returns=np.array(episode_returns),
                 xs=np.array(episode_xs),
             )
+
+        # saving doesn't use any random numbers, so the run itself is unchanged
+        if args.snapshot_every and update % (args.snapshot_every // batch_size) == 0:
+            torch.save(agent.state_dict(), snapshot_dir / f"step{global_step:08d}.pt")
 
     envs.close()
     print(f"saved {run_dir / name}.pt and .npz")
