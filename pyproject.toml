@@ -1,7 +1,7 @@
 [project]
 name = "super-mario-world-ppo"
 version = "0.1.0"
-description = "PPO from scratch, trained on Super Mario World and tested on unseen levels"
+description = "PPO from scratch in PyTorch, trained from pixels to clear Super Mario World's Yoshi's Island 1"
 readme = "README.md"
 authors = [
     { name = "Tyler Wortley", email = "tjawortley@gmail.com" }
